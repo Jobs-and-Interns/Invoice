@@ -268,7 +268,7 @@
     <div id="dashEmpty" class="panel mt-6 p-8 text-center" hidden>
       <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand dark:bg-brand/20" data-icon="receipt" data-size="28"></div>
       <h2 class="mt-4 text-lg font-bold">Create your first invoice</h2>
-      <p class="mx-auto mt-1 max-w-md text-slate-500 dark:text-slate-400">Jobs and Interns details and recruitment service rates are already filled in. Start a document, or load a few sample records to look around first.</p>
+      <p class="mx-auto mt-1 max-w-md text-slate-500 dark:text-slate-400">Jobs and Interns details, advertising packages and service rates are already filled in. Start a document, or load a few sample records to look around first.</p>
       <div class="mt-5 flex flex-wrap justify-center gap-2">
         <button class="btn-primary" data-action="new" data-type="invoice">Create invoice</button>
         <button class="btn-line" data-action="load-sample">Load sample data</button>
@@ -845,7 +845,7 @@ const TERMS = [
   { v: 'net15', l: 'Net 15 days', d: 15 }, { v: 'net30', l: 'Net 30 days', d: 30 }, { v: 'net45', l: 'Net 45 days', d: 45 },
   { v: 'net60', l: 'Net 60 days', d: 60 }, { v: 'custom', l: 'Custom date', d: null }
 ];
-const UNITS = ['item', 'hour', 'day', 'week', 'month', 'year', 'project', 'milestone', 'screen', 'page', 'licence', 'user'];
+const UNITS = ['item', 'post', 'package', 'hour', 'day', 'week', 'month', 'year', 'project', 'milestone', 'screen', 'page', 'licence', 'user'];
 const METHODS = ['Bank transfer', 'Cash', 'Card', 'Cheque', 'Online gateway', 'PayPal', 'Payoneer', 'Other'];
 const STATUSES = {
   invoice: [['draft', 'Draft'], ['sent', 'Sent'], ['cancelled', 'Cancelled']],
@@ -869,7 +869,24 @@ const TYPE_LABEL = { invoice: 'Invoice', quotation: 'Quotation', receipt: 'Recei
 const TEMPLATES = ['modern', 'bold', 'classic', 'minimal'];
 const SWATCHES = ['#DC2626', '#991B1B', '#1F2937', '#0E7490', '#0F766E', '#7C3AED', '#B45309'];
 
+// Advertising price list, taken from jobs-and-interns.github.io (Pricing and Packages sections).
+const AD_SERVICES = [
+  ['Ad Packages', 'Starter package', '3 Standard channel posts. Save LKR 1,000 compared with booking separately.', 'package', 9500],
+  ['Ad Packages', 'Growth package', '3 Prime channel posts and 2 Status ads. Save LKR 5,500 compared with booking separately.', 'package', 25000],
+  ['Ad Packages', 'Weekly Boost package', '7 channel posts (1 per day) and 3 Status ads. Save LKR 8,000+ compared with booking separately.', 'package', 39000],
+  ['Ad Packages', 'Monthly Pro package', '20 channel posts and 8 Status ads. Save LKR 30,000+ compared with booking separately.', 'package', 110000],
+  ['Channel Posts', 'Standard channel post', 'Single advertising post on the Jobs and Interns WhatsApp channel. Lunch or weekend day slot.', 'post', 3500],
+  ['Channel Posts', 'Peak channel post', 'Single advertising post on the WhatsApp channel. Morning commute slot.', 'post', 5000],
+  ['Channel Posts', 'Prime channel post', 'Single advertising post on the WhatsApp channel. Evening slot.', 'post', 7500],
+  ['Channel Posts', 'Sunday Prime channel post', 'Single advertising post on the WhatsApp channel. Sunday 8:00 PM slot.', 'post', 8500],
+  ['Status Ads', 'Status ad', 'Advertisement shared as a WhatsApp status (34,000+ status views).', 'item', 4000],
+  ['Status Ads', 'Status ad add-on', 'Status ad added to a booked channel post.', 'item', 2500],
+  ['Ad Add-ons', 'Ad design', 'Advertisement creative designed by Jobs and Interns.', 'item', 1500],
+  ['Ad Add-ons', 'Caption writing', 'Caption written for your advertisement post.', 'item', 500]
+];
+
 const DEFAULT_SERVICES = [
+  ...AD_SERVICES,
   ['Job Postings', 'Standard job post', 'Verified vacancy shared on the Jobs and Interns WhatsApp channel. Free for verified companies.', 'item', 0],
   ['Job Postings', 'Featured job post', 'Highlighted vacancy on the channel and all 12+ university communities, with a reminder repost.', 'item', 5000],
   ['Job Postings', 'Urgent hiring boost', 'Priority placement and two extra reposts within 48 hours for time-critical roles.', 'item', 3000],
@@ -905,10 +922,11 @@ function defaultSettings() {
     theme: 'system'
   };
 }
+const toService = ([category, name, desc, unit, rate]) => ({ id: uid(), category, name, desc, unit, rate });
 function defaultState() {
   return {
-    v: 1, settings: defaultSettings(),
-    services: DEFAULT_SERVICES.map(([category, name, desc, unit, rate]) => ({ id: uid(), category, name, desc, unit, rate })),
+    v: 2, settings: defaultSettings(),
+    services: DEFAULT_SERVICES.map(toService),
     clients: [], docs: [], current: null, lastView: 'dashboard'
   };
 }
@@ -928,6 +946,12 @@ function loadState() {
     if (!/^#[0-9a-f]{3,8}$/i.test(st.accent)) st.accent = '#DC2626';
     if (!['system', 'light', 'dark'].includes(st.theme)) st.theme = 'system';
     s.services = Array.isArray(d.services) ? d.services.map(cleanService) : base.services;
+    if (!(num(d.v) >= 2)) {
+      // v2: add the website's advertising packages and rates to catalogues saved before they existed.
+      const have = new Set(s.services.map(x => x.name.trim().toLowerCase()));
+      s.services = AD_SERVICES.filter(a => !have.has(a[1].toLowerCase())).map(toService).concat(s.services);
+    }
+    s.v = 2;
     s.clients = Array.isArray(d.clients) ? d.clients.map(cleanClient) : [];
     s.docs = Array.isArray(d.docs) ? d.docs.map(normalizeDoc) : [];
     s.current = d.current ? normalizeDoc(d.current) : null;
