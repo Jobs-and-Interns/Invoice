@@ -100,6 +100,8 @@
   .inv *, .inv *::before, .inv *::after { box-sizing: border-box; }
   .inv .pad { padding: 0 56px; }
   .inv .num { font-variant-numeric: tabular-nums; }
+  /* html2canvas draws text without tabular figures, so numbers drift and leave gaps (e.g. "JI- RCT") in the PDF */
+  .inv.export .num { font-variant-numeric: normal; }
   .inv .muted { color: var(--muted); }
   .inv .rail { height: 8px; background: var(--accent); }
   .inv .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding-top: 34px; padding-bottom: 22px; }
@@ -113,13 +115,14 @@
   .inv .status.paid { background: #E3F5EE; color: #0B6B4B; }
   .inv .status.overdue { background: #FDEBDD; color: #9A3D07; }
   .inv .status.partial { background: #E0F2F7; color: #0E5E75; }
-  .inv .meta { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 28px; padding-top: 18px; padding-bottom: 20px; border-top: 1px solid var(--rule); }
+  .inv .meta { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) max-content; gap: 28px; padding-top: 18px; padding-bottom: 20px; border-top: 1px solid var(--rule); }
   .inv .meta h4 { margin: 0 0 6px; font-size: 11px; font-weight: 700; color: var(--muted); }
   .inv .meta .strong { font-weight: 700; font-size: 13.5px; }
   .inv .meta p { margin: 0; white-space: pre-line; }
   .inv .kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
-  .inv .kv dt { color: var(--muted); }
-  .inv .kv dd { margin: 0; text-align: right; font-weight: 600; }
+  .inv .kv dt { color: var(--muted); white-space: nowrap; }
+  .inv .kv dd { margin: 0; text-align: right; font-weight: 600; max-width: 230px; overflow-wrap: anywhere; }
+  .inv .kv dd .part { display: inline-block; }
   .inv .project { margin-bottom: 14px; font-size: 13px; }
   .inv .project b { font-weight: 700; }
   .inv table.items { width: 100%; border-collapse: collapse; }
@@ -147,6 +150,7 @@
   .inv .words b { display: block; font-size: 11px; color: var(--muted); font-weight: 700; margin-bottom: 2px; }
   .inv .paylist { margin-top: 14px; font-size: 11.5px; }
   .inv .paylist h4 { margin: 0 0 4px; font-size: 11px; color: var(--muted); font-weight: 700; }
+  .inv .paylist .num { white-space: nowrap; flex-shrink: 0; }
   .inv .paylist div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-bottom: 1px dashed var(--rule); }
   .inv .lower { display: grid; grid-template-columns: 1fr auto; gap: 28px; padding-top: 20px; align-items: start; }
   .inv .box h4 { margin: 0 0 6px; font-size: 11px; font-weight: 700; color: var(--muted); }
@@ -1098,7 +1102,9 @@ function renderInvoice(doc, { exporting = false, logoSrc, page } = {}) {
     [doc.type === 'receipt' ? 'Payment date' : 'Issue date', fmtDate(doc.issueDate)],
     doc.type !== 'receipt' ? [dueLabel, fmtDate(doc.dueDate)] : null,
     doc.type === 'invoice' && doc.terms !== 'custom' ? ['Terms', termL] : null,
-    doc.reference ? ['Reference', esc(doc.reference)] : null,
+    // Each hyphen-separated part is its own inline-block, so a long reference wraps between parts
+    // and html2canvas draws every part where the browser laid it out (it misplaces wrapped right-aligned text)
+    doc.reference ? ['Reference', String(doc.reference).split(/(?<=-)/).map(x => `<span class="part">${esc(x)}</span>`).join('')] : null,
     ['Currency', cur]
   ].filter(Boolean);
   const coLines = [co.address, co.phone, co.email, co.website].filter(Boolean).map(esc).join('\n');
